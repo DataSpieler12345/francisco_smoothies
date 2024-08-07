@@ -26,7 +26,7 @@ fruit_list = [row['FRUIT_NAME'] for row in fruit_options]
 ingredients_list = st.multiselect(
     'Choose up to 5 ingredients:',
     fruit_list,
-    max_selections=5  # Changed to 5 to match the problem statement
+    max_selections=6  # Changed to 6 to match the problem statement
 )
 
 if ingredients_list:
@@ -44,7 +44,8 @@ if ingredients_list:
     if time_to_insert:
         session.sql(my_insert_stmt).collect()
         st.success(f'Your Smoothie has been ordered, {name_on_order}', icon="✅")
-
+    
+    # New section to display fruityvice nutrition information
     import requests
     fruityvice_response = requests.get("https://fruityvice.com/api/fruit/watermelon")
-    st.text(fruityvice_response)
+    st.text(fruityvice_response.json())
