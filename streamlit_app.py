@@ -18,34 +18,26 @@ name_on_order = st.text_input('Name on Smoothie:')
 st.write("The name on your Smoothie will be:", name_on_order)
 
 # Get fruit options from Snowflake
-my_dataframe = session.table('smoothies.public.fruit_options').select(col('FRUIT_NAME'), col('SEARCH_ON')).collect()
-
-# Display the dataframe for debugging
+my_dataframe = session.table('smoothies.public.fruit_options').select(col('FRUIT_NAME'), col('SEARCH_ON')).to_pandas()
 st.dataframe(data=my_dataframe, use_container_width=True)
-st.stop()
-
-# Convert the Snowpark DataFrame to a Pandas DataFrame so we can use the LOC function
-pd_df = my_dataframe.to_pandas()
-st.dataframe(pd_df)
-st.stop()
 
 # Convert the fruit options to a list
-fruit_list = pd_df['FRUIT_NAME'].tolist()
+fruit_list = my_dataframe['FRUIT_NAME'].tolist()
 
 # User selects ingredients
 ingredients_list = st.multiselect(
     'Choose up to 5 ingredients:',
     fruit_list,
-    max_selections=6  # Changed to 6 to match the problem statement
+    max_selections=5  # Match the requirement
 )
 
 if ingredients_list:
-    ingredients_string = ' '.join(ingredients_list)
+    ingredients_string = ', '.join(ingredients_list)
 
     # Formulate the insert statement correctly
     my_insert_stmt = f"""
-    INSERT INTO smoothies.public.orders (INGREDIENTS, NAME_ON_ORDER)
-    VALUES ('{ingredients_string}', '{name_on_order}')
+    INSERT INTO smoothies.public.orders (INGREDIENTS, NAME_ON_ORDER, ORDER_FILLED)
+    VALUES ('{ingredients_string}', '{name_on_order}', FALSE)
     """
 
     # Button to submit the order
@@ -57,11 +49,11 @@ if ingredients_list:
 
 if ingredients_list:
     for fruit_chosen in ingredients_list:
-        search_on = pd_df.loc[pd_df['FRUIT_NAME'] == fruit_chosen, 'SEARCH_ON'].iloc[0]
+        search_on = my_dataframe.loc[my_dataframe['FRUIT_NAME'] == fruit_chosen, 'SEARCH_ON'].iloc[0]
         st.write('The search value for ', fruit_chosen, ' is ', search_on, '.')
         
         st.subheader(f'{fruit_chosen} Nutrition Information')
-        fruityvice_response = requests.get(f"https://fruityvice.com/api/fruit/{fruit_chosen}")
+        fruityvice_response = requests.get(f"https://fruityvice.com/api/fruit/{search_on}")
         
         try:
             fruityvice_response.raise_for_status()
@@ -70,3 +62,40 @@ if ingredients_list:
         except requests.exceptions.HTTPError as e:
             st.error(f"Failed to retrieve data for {fruit_chosen}")
             st.write(e)
+
+# Function to update the order status
+def update_order_status(name, ingredients, filled):
+    update_stmt = f"""
+    UPDATE smoothies.public.orders
+    SET ORDER_FILLED = {filled}
+    WHERE NAME_ON_ORDER = '{name}' AND INGREDIENTS = '{ingredients}'
+    """
+    session.sql(update_stmt).collect()
+
+# Adding orders as per the requirement
+if st.button('Add Predefined Orders'):
+    # Kevin's order
+    kevin_ingredients = 'Apples, Lime, Ximenia'
+    kevin_stmt = f"""
+    INSERT INTO smoothies.public.orders (INGREDIENTS, NAME_ON_ORDER, ORDER_FILLED)
+    VALUES ('{kevin_ingredients}', 'Kevin', FALSE)
+    """
+    session.sql(kevin_stmt).collect()
+
+    # Divya's order
+    divya_ingredients = 'Dragon Fruit, Guava, Figs, Jackfruit, Blueberries'
+    divya_stmt = f"""
+    INSERT INTO smoothies.public.orders (INGREDIENTS, NAME_ON_ORDER, ORDER_FILLED)
+    VALUES ('{divya_ingredients}', 'Divya', TRUE)
+    """
+    session.sql(divya_stmt).collect()
+
+    # Xi's order
+    xi_ingredients = 'Vanilla Fruit, Nectarine'
+    xi_stmt = f"""
+    INSERT INTO smoothies.public.orders (INGREDIENTS, NAME_ON_ORDER, ORDER_FILLED)
+    VALUES ('{xi_ingredients}', 'Xi', TRUE)
+    """
+    session.sql(xi_stmt).collect()
+
+    st.success('Predefined orders have been added.', icon="✅")
