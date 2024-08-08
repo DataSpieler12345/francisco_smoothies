@@ -18,10 +18,17 @@ name_on_order = st.text_input('Name on Smoothie:')
 st.write("The name on your Smoothie will be:", name_on_order)
 
 # Get fruit options from Snowflake
-fruit_options = session.table('smoothies.public.fruit_options').select(col('FRUIT_NAME')).collect()
+my_dataframe = session.table('smoothies.public.fruit_options').select(col('FRUIT_NAME'), col('SEARCH_ON'))
+
+# Display the dataframe for debugging
+st.dataframe(data=my_dataframe, use_container_width=True)
+st.stop()
+
+# Convert the Snowpark DataFrame to a Pandas DataFrame
+pd_df = my_dataframe.to_pandas()
 
 # Convert the fruit options to a list
-fruit_list = [row['FRUIT_NAME'] for row in fruit_options]
+fruit_list = pd_df['FRUIT_NAME'].tolist()
 
 # User selects ingredients
 ingredients_list = st.multiselect(
@@ -47,10 +54,14 @@ if ingredients_list:
         st.success(f'Your Smoothie has been ordered, {name_on_order}', icon="✅")
     
 if ingredients_list:
-        ingredients_string = ''
-
-        for fruit_chosen in ingredients_list:
-                ingredients_string += fruit_chosen + ' ' 
-                st.subheader(fruit_chosen + ' Nutrition Information')
-                fruityvice_response = requests.get("https://fruityvice.com/api/fruit/" + fruit_chosen)
-                fv_df = st.dataframe(data=fruityvice_response.json(), use_container_width=True)
+    for fruit_chosen in ingredients_list:
+        st.subheader(f'{fruit_chosen} Nutrition Information')
+        fruityvice_response = requests.get(f"https://fruityvice.com/api/fruit/{fruit_chosen}")
+        
+        try:
+            fruityvice_response.raise_for_status()
+            fv_data = fruityvice_response.json()
+            st.json(fv_data)
+        except requests.exceptions.HTTPError as e:
+            st.error(f"Failed to retrieve data for {fruit_chosen}")
+            st.write(e)
