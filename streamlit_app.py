@@ -21,11 +21,13 @@ st.write("The name on your Smoothie will be:", name_on_order)
 my_dataframe = session.table('smoothies.public.fruit_options').select(col('FRUIT_NAME'), col('SEARCH_ON'))
 
 # Display the dataframe for debugging
-st.dataframe(data=my_dataframe, use_container_width=True)
-st.stop()
+# st.dataframe(data=my_dataframe, use_container_width=True)
+# st.stop()
 
-# Convert the Snowpark DataFrame to a Pandas DataFrame
+# Convert the Snowpark DataFrame to a Pandas DataFrame so we can use the LOC function
 pd_df = my_dataframe.to_pandas()
+st.dataframe(pd_df)
+st.stop()
 
 # Convert the fruit options to a list
 fruit_list = pd_df['FRUIT_NAME'].tolist()
@@ -52,7 +54,7 @@ if ingredients_list:
     if time_to_insert:
         session.sql(my_insert_stmt).collect()
         st.success(f'Your Smoothie has been ordered, {name_on_order}', icon="✅")
-    
+
 if ingredients_list:
     for fruit_chosen in ingredients_list:
         st.subheader(f'{fruit_chosen} Nutrition Information')
